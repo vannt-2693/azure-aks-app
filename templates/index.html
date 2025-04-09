@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Image Viewer & Uploader</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+            color: #333;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 960px;
+            margin: 30px auto;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        h1, h2 {
+            color: #0056b3;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        h1 { font-size: 2em; }
+        h2 { font-size: 1.5em; margin-top: 40px; }
+
+        /* --- Drag and Drop Area Styling --- */
+        .upload-form {
+             margin-bottom: 30px;
+        }
+        #drop-zone {
+            border: 3px dashed #007bff;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            background-color: #f0f8ff; /* Light blue background */
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+            margin-bottom: 15px; /* Space before button */
+        }
+        #drop-zone.drag-over {
+            background-color: #e0f0ff; /* Darker blue on drag over */
+            border-color: #0056b3;
+        }
+        #drop-zone p {
+            margin: 0;
+            font-size: 1.1em;
+            color: #555;
+        }
+        #drop-zone span { /* For filename display */
+            display: block;
+            margin-top: 10px;
+            font-style: italic;
+            color: #333;
+            font-size: 0.9em;
+        }
+        /* Hide the actual file input */
+        #fileInput {
+            display: none;
+        }
+        /* ------------------------------------ */
+
+        .upload-form button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .upload-form button:hover {
+            background-color: #0056b3;
+        }
+        .gallery {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .gallery img {
+            max-width: 220px;
+            height: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease-in-out;
+        }
+         .gallery img:hover {
+            transform: scale(1.05);
+         }
+        .gallery p {
+            width: 100%;
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+        }
+        .flash-message {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            border: 1px solid transparent;
+            font-size: 0.95em;
+        }
+        .flash-success { color: #155724; background-color: #d4edda; border-color: #c3e6cb; }
+        .flash-error { color: #721c24; background-color: #f8d7da; border-color: #f5c6cb; }
+        .flash-warning { color: #856404; background-color: #fff3cd; border-color: #ffeeba; }
+        hr { border: 0; height: 1px; background-color: #eee; margin-top: 40px; margin-bottom: 40px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1 >Azure Blob Storage Interaction</h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="flash-message flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="upload-form">
+            <form id="uploadForm" action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data">
+
+                <input type="file" id="fileInput" name="file" accept="image/*" required>
+
+                <div id="drop-zone">
+                    <p>Drag your file here or click to upload</p>
+                    <span id="filename-display"></span> </div>
+
+                <button type="submit">Upload Image</button>
+            </form>
+        </div>
+
+        <hr>
+
+        <h2>Images in Container</h2>
+
+        <div class="gallery">
+            {% if image_urls %}
+                {% for url in image_urls %}
+                    <img src="{{ url }}" alt="Image from Azure Storage">
+                {% endfor %}
+            {% else %}
+                <p>No images found in the container.</p>
+            {% endif %}
+        </div>
+    </div>
+
+<script>
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('fileInput');
+    const filenameDisplay = document.getElementById('filename-display');
+    const uploadForm = document.getElementById('uploadForm');
+
+    dropZone.addEventListener('dragenter', (event) => {
+        event.preventDefault();
+        dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragleave', (event) => {
+        event.preventDefault();
+        dropZone.classList.remove('drag-over');
+    });
+
+    dropZone.addEventListener('drop', (event) => {
+        event.preventDefault();
+        dropZone.classList.remove('drag-over');
+
+        const files = event.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            const changeEvent = new Event('change');
+            fileInput.dispatchEvent(changeEvent);
+        }
+    });
+
+    dropZone.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length > 0) {
+            filenameDisplay.textContent = `Selected file: ${fileInput.files[0].name}`;
+        } else {
+            filenameDisplay.textContent = '';
+        }
+    });
+
+</script>
+
+</body>
+</html>
