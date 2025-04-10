@@ -38,7 +38,7 @@ jobs:
 
   deploy_app:
     needs: build
-    runs-on: aks-demo-runner
+    runs-on: self-hosted
     env:
       ENV: dev
       FULL_ENV: development
