@@ -1,0 +1,91 @@
+name: Deploy Azure Project Actions
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - develop
+      - staging
+      - master
+
+jobs:
+  # build:
+  #   runs-on: ubuntu-latest
+
+  #   steps:
+  #   - uses: actions/checkout@v3
+
+  #   - name: Set environment variables
+  #     run: |
+  #       echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+  #   - name: Build the Docker image
+  #     run: |
+  #       docker build -t ${{ secrets.REGISTRY_HOST }}/aks-demo:$IMAGE_TAG -t ${{ secrets.REGISTRY_HOST }}/aks-demo:latest -f Dockerfile .
+
+  #   - name: Login acr
+  #     uses: azure/docker-login@v2
+  #     with:
+  #       login-server: ${{ secrets.REGISTRY_HOST }}
+  #       username: ${{ secrets.REGISTRY_USER }}
+  #       password: ${{ secrets.REGISTRY_PASSWORD }}
+
+  #   - name: Push the Docker image
+  #     id: push-image
+  #     run: |
+  #       docker push ${{ secrets.REGISTRY_HOST }}/aks-demo:$IMAGE_TAG
+  #       docker push ${{ secrets.REGISTRY_HOST }}/aks-demo:latest
+
+  deploy_app:
+    # needs: build
+    runs-on: ubuntu-latest
+    env:
+      ENV: dev
+      FULL_ENV: development
+      PROJECT: aks-demo
+      TIER: webapp
+      CI: false
+      RESOURCE_GROUP: project-dev-rg
+      AKS_CLUSTER_NAME: project-dev-aks-api-cluster
+      NAMESPACE: app
+
+    steps:
+    - name: Set environment variables
+      run: echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+    - name: Login to Azure
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Set AKS context
+      uses: azure/aks-set-context@v3
+      with:
+        resource-group: ${{ env.RESOURCE_GROUP }}
+        cluster-name: ${{ env.AKS_CLUSTER_NAME }}
+
+    - name: Deploy to Kubernetes cluster with Helm
+      id: helm_deploy
+      env:
+        RELEASE: ${{ env.PROJECT }}-${{ env.TIER }}
+      run: |
+        helm upgrade --install $RELEASE \
+         ./helm/Charts/app \
+         --namespace ${{ env.NAMESPACE }} \
+         --wait \
+         --timeout 300s \
+         --history-max 10
+      continue-on-error: true
+
+    - name: Check Helm Deployment Status
+      if: steps.helm_deploy.outcome == 'failure'
+      env:
+        RELEASE: ${{ env.PROJECT }}
+      run: |
+        echo "Helm deployment failed. Rolling back to previous release."
+        previous_revision=$(helm history $RELEASE -o json | jq -r '.[-2].revision')
+        helm rollback $RELEASE $previous_revision
+
+    - name: Deploy Success
+      run: |
+        echo "🚀 Application deployed!"

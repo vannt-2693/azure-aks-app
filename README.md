@@ -15,3 +15,5 @@ docker run -p 5001:5000 \
        --name my-azure-app \
        azure-image-app
 ```
+
+- access to localhost: http://localhost:5001
