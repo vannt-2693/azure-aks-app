@@ -66,15 +66,6 @@ jobs:
         resource-group: ${{ env.RESOURCE_GROUP }}
         cluster-name: ${{ env.AKS_CLUSTER_NAME }}
 
-    - name: Debug Paths
-      run: |
-        echo "--- Listing root directory ---"
-        ls -la $GITHUB_WORKSPACE
-        echo "--- Listing kubernetes directory ---"
-        ls -la ./kubernetes
-        echo "--- Listing charts directory ---"
-        ls -la ./kubernetes/charts
-
     - name: Deploy to Kubernetes cluster with Helm
       id: helm_deploy
       env:
