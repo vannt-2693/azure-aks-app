@@ -69,7 +69,7 @@ jobs:
       env:
         RELEASE: ${{ env.PROJECT }}
       run: |
-        helm upgrade --install $RELEASE ./kubernetes/Charts/app \
+        helm upgrade --install $RELEASE ./kubernetes/charts/app \
          --namespace ${{ env.NAMESPACE }} \
          --set image.tag=$IMAGE_TAG \
          --wait \
