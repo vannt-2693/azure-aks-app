@@ -9,36 +9,36 @@ on:
       - master
 
 jobs:
-  # build:
-  #   runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-latest
 
-  #   steps:
-  #   - uses: actions/checkout@v3
+    steps:
+    - uses: actions/checkout@v3
 
-  #   - name: Set environment variables
-  #     run: |
-  #       echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+    - name: Set environment variables
+      run: |
+        echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
 
-  #   - name: Build the Docker image
-  #     run: |
-  #       docker build -t ${{ secrets.REGISTRY_HOST }}/aks-demo:$IMAGE_TAG -t ${{ secrets.REGISTRY_HOST }}/aks-demo:latest -f Dockerfile .
+    - name: Build the Docker image
+      run: |
+        docker build -t ${{ secrets.REGISTRY_HOST }}/aks-demo:$IMAGE_TAG -t ${{ secrets.REGISTRY_HOST }}/aks-demo:latest -f Dockerfile .
 
-  #   - name: Login acr
-  #     uses: azure/docker-login@v2
-  #     with:
-  #       login-server: ${{ secrets.REGISTRY_HOST }}
-  #       username: ${{ secrets.REGISTRY_USER }}
-  #       password: ${{ secrets.REGISTRY_PASSWORD }}
+    - name: Login acr
+      uses: azure/docker-login@v2
+      with:
+        login-server: ${{ secrets.REGISTRY_HOST }}
+        username: ${{ secrets.REGISTRY_USER }}
+        password: ${{ secrets.REGISTRY_PASSWORD }}
 
-  #   - name: Push the Docker image
-  #     id: push-image
-  #     run: |
-  #       docker push ${{ secrets.REGISTRY_HOST }}/aks-demo:$IMAGE_TAG
-  #       docker push ${{ secrets.REGISTRY_HOST }}/aks-demo:latest
+    - name: Push the Docker image
+      id: push-image
+      run: |
+        docker push ${{ secrets.REGISTRY_HOST }}/aks-demo:$IMAGE_TAG
+        docker push ${{ secrets.REGISTRY_HOST }}/aks-demo:latest
 
   deploy_app:
-    # needs: build
-    runs-on: ubuntu-latest
+    needs: build
+    runs-on: aks-demo-runner
     env:
       ENV: dev
       FULL_ENV: development
@@ -72,6 +72,7 @@ jobs:
         helm upgrade --install $RELEASE \
          ./helm/Charts/app \
          --namespace ${{ env.NAMESPACE }} \
+         --set image.tag=$IMAGE_TAG \
          --wait \
          --timeout 300s \
          --history-max 10
