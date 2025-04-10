@@ -39,32 +39,22 @@ def index():
     image_urls = []
     try:
         blob_list = container_client.list_blobs()
-        # --- Import thư viện cần thiết cho SAS ---
         from azure.storage.blob import generate_blob_sas, BlobSasPermissions
         from datetime import datetime, timedelta
-        # -----------------------------------------
 
         for blob in blob_list:
             blob_client = container_client.get_blob_client(blob.name)
 
-            # --- Bỏ comment phần này để tạo và dùng SAS token ---
             sas_token = generate_blob_sas(
                 account_name=blob_service_client.account_name,
                 container_name=container_name,
                 blob_name=blob.name,
-                # Lấy account key từ credential của service client
                 account_key=blob_service_client.credential.account_key,
-                permission=BlobSasPermissions(read=True), # Chỉ cấp quyền đọc
-                expiry=datetime.utcnow() + timedelta(hours=1) # Token hết hạn sau 1 giờ
+                permission=BlobSasPermissions(read=True),
+                expiry=datetime.utcnow() + timedelta(hours=1)
             )
-            # Tạo URL đầy đủ với SAS token
             image_url_with_sas = f"{blob_client.url}?{sas_token}"
             image_urls.append(image_url_with_sas)
-            # --- Kết thúc phần SAS token ---
-
-            # --- Comment hoặc xóa dòng lấy URL trực tiếp nếu dùng SAS ---
-            # image_urls.append(blob_client.url)
-            # ------------------------------------------------------
 
     except Exception as e:
         flash(f"Error retrieving image list: {e}", "error")
@@ -107,6 +97,4 @@ def upload_file():
 
 # --- Run the application ---
 if __name__ == '__main__':
-    # Run on port 5000 and listen on all available IP addresses (important for Docker)
-    # Turn off debug=True in production
     app.run(host='0.0.0.0', port=5000, debug=True)
